@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, TextInput, Button, FlatList, Text } from 'react-native';
 import { useState, useEffect } from 'react';
 import { db } from './firebaseConfig';
-import { ref, push, onValue } from 'firebase/database';
+import { ref, push, onValue, remove } from 'firebase/database';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
@@ -13,19 +13,35 @@ export default function App() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    onValue(ref(db, "/items"), (snapshot) => {
+    const itemsRef = ref(db, "/items");
+    const unsubscribe = onValue(itemsRef, (snapshot) => {
       const data = snapshot.val();
-      setItems(Object.values(data));
+      if (data) {
+        const formattedItems = Object.keys(data).map(key => ({
+          id: key,       // store Firebase key
+          ...data[key],
+        }));
+        setItems(formattedItems);
+      } else {
+        setItems([]);
+      }
     });
-  }, [])
+
+    return () => unsubscribe();
+  }, []);
+
 
   const handleSave = () => {
     if (product.title) {
       push(ref(db, 'items/'), product);
+      setProduct({ title: "", amount: "" }); // Clear input
     }
   }
 
-  //remove(ref(db, "items/id"))
+  const deleteItem = (id) => {
+    remove(ref(db, `items/${id}`));
+  }
+
 
   return (
     <SafeAreaProvider>
